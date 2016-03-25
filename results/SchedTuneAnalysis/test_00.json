@@ -1,0 +1,40 @@
+{
+    "global": {
+        "calibration": 355,
+        "default_policy": "SCHED_OTHER",
+        "duration": -1,
+        "logdir": "/root/devlib-target"
+    },
+    "tasks": {
+        "task_ramp": {
+            "loop": 1,
+            "phases": {
+                "p000001": {
+                    "loop": 62,
+                    "run": 3200,
+                    "timer": {
+                        "period": 32000,
+                        "ref": "task_ramp"
+                    }
+                },
+                "p000002": {
+                    "loop": 62,
+                    "run": 11200,
+                    "timer": {
+                        "period": 32000,
+                        "ref": "task_ramp"
+                    }
+                },
+                "p000003": {
+                    "loop": 62,
+                    "run": 19200,
+                    "timer": {
+                        "period": 32000,
+                        "ref": "task_ramp"
+                    }
+                }
+            },
+            "policy": "SCHED_OTHER"
+        }
+    }
+}
