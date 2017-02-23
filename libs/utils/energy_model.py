@@ -118,6 +118,30 @@ class EnergyModelNode(_CpuTree):
                  cpu=None, children=None, name=None):
         super(EnergyModelNode, self).__init__(cpu, children)
 
+        if active_states:
+            # Sanity check for active_states's frequencies
+            values = [f for f,_ in active_states.iteritems()]
+            moninc = sorted(values)
+            if values != moninc:
+                raise ValueError('Active states frequencies are expected to be '
+                                 'monotonically increasing')
+
+            # Sanity check for active_states's powers
+            values = [s.power for _,s in active_states.iteritems()]
+            moninc = sorted(values)
+            if values != moninc:
+                raise ValueError('Active states powers are expected to be '
+                                 'monotonically increasing')
+
+        # Sanity check for idle_states powers
+        if idle_states:
+            values = [v for _,v in idle_states.iteritems()]
+            mondec = sorted(values, reverse=True)
+            if values != mondec:
+                raise ValueError('Idle states powers are expected to be '
+                                 'monotonically decreasing')
+
+
         if cpu is not None and not name:
             name = 'cpu' + str(cpu)
 
