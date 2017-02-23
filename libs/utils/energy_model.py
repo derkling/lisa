@@ -539,7 +539,7 @@ class EnergyModel(object):
         tasks = capacities.keys()
 
         num_candidates = len(self.cpus) ** len(tasks)
-        self._log.info(
+        self._log.debug(
             '%14s - Searching %d configurations for optimal task placement...',
             'EnergyModel', num_candidates)
 
@@ -576,5 +576,5 @@ class EnergyModel(object):
         min_power = min(p for p in candidates.itervalues())
         ret = [u for u, p in candidates.iteritems() if p == min_power]
 
-        self._log.info('%14s - Done', 'EnergyModel')
+        self._log.debug('%14s - Done', 'EnergyModel')
         return ret
