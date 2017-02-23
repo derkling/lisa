@@ -544,6 +544,7 @@ class EnergyModel(object):
             'EnergyModel', num_candidates)
 
         candidates = {}
+        excluded = []
         for cpus in product(self.cpus, repeat=len(tasks)):
             placement = {task: cpu for task, cpu in zip(tasks, cpus)}
 
@@ -552,11 +553,18 @@ class EnergyModel(object):
                 util[cpu] += capacities[task]
             util = tuple(util)
 
+            if (any([u > 1024 for u in util]) or
+                util in excluded):
+                continue
+
             if util not in candidates:
                 freqs, overutilized = self._guess_freqs(util)
                 if not overutilized:
                     power = self.estimate_from_cpu_util(util, freqs=freqs)
                     candidates[util] = sum(power.values())
+                else:
+                    excluded.append(util)
+
 
         if not candidates:
             # The system can't provide full throughput to this workload.
