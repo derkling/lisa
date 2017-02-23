@@ -178,7 +178,7 @@ class EnergyModel(object):
 
     - A CPU topology, representing the physical (cache/interconnect) topology of
       the CPUs.  Each node stores the energy usage of that node's hardware when
-      it is in each active or idle state. They also store a compute capacity eat
+      it is in each active or idle state. They also store a compute capacity at
       each frequency, but this is only meaningful for leaf nodes (CPUs) and may
       be None at higher levels. These capacity values are relative; the maximum
       capacity would usually be 1024, the value of SCHED_CAPACITY_SCALE in the

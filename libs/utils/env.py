@@ -363,7 +363,7 @@ class TestEnv(ShareState):
             platform = Platform(model='MT8173')
             self.__modules = ['bl', 'cpufreq']
 
-
+        # Initialized HiKey board
         elif self.conf['board'].upper() == 'HIKEY':
             self.nrg_model = hikey_energy
             self.__modules = [ "cpufreq", "cpuidle" ]
