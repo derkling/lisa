@@ -273,16 +273,16 @@ class AEP(_DevlibContinuousEnergyMeter):
         # Configure channels for energy measurements
         self._log.info('AEP configuration')
         self._log.info('    %s', conf)
-        self._aep = devlib.EnergyProbeInstrument(
+        self._instrument = devlib.EnergyProbeInstrument(
             self._target, labels=conf.get('channel_map'), **conf['conf'])
 
         # Configure channels for energy measurements
         self._log.debug('Enabling channels')
-        self._aep.reset()
+        self._instrument.reset()
 
         # Logging enabled channels
         self._log.info('Channels selected for energy sampling:')
-        self._log.info('   %s', str(self._aep.active_channels))
+        self._log.info('   %s', str(self._instrument.active_channels))
         self._log.debug('Results dir: %s', self._res_dir)
 
 class Monsoon(_DevlibContinuousEnergyMeter):
