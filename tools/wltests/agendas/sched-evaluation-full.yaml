@@ -1,0 +1,116 @@
+# This is an example agenda which shows a possible (rather large) set of
+# workloads and data collection.
+#
+# This will run 5 iterations each of a large set of workloads, under each of
+# PELT and WALT load tracking (it assumes that the target supports both
+# mechanisms).
+
+################################################################################
+# GLOBAL CONFIGURATIONS
+################################################################################
+global:
+  # Collect energy data, ftrace files, and dmesg
+  # You may want to edit your config.yaml to set up the energy_measurement
+  # instrument (an example configuration is provided in this repo).
+  instrumentation: [energy_measurement, trace-cmd, dmesg]
+  # Do everything 5 times, if not otherwise specified by the specific workload
+  iterations: 5
+
+  # To aid reproducibility and try to reduce noise in power measurements,
+  # minimise the screen brightness and set airplane mode on.
+  runtime_params:
+    brightness: 0
+    screen_on: true
+    airplane_mode: true
+
+################################################################################
+# SYSTEM CONFIGURATIONS
+################################################################################
+sections:
+  - id: default      # Just a human-readable name
+    classifiers:     # Will be used to map job output to 'tags' when analysing
+      tag: dflt
+
+################################################################################
+# WORKLOADS CONFIGURATIONS
+################################################################################
+workloads:
+
+################################################################################
+# Homescreen
+# Sit on the homescreen for 15 seconds
+  - name: homescreen
+    id: sit_15s
+    workload_parameters:
+      duration: 15
+
+################################################################################
+# Exoplayer
+
+# Play 30 seconds of a video with Exoplayer - this is the basis for the
+# YouTube app, so it's hoped that this is a decent proxy for Youtube
+# performance on devices where running the real app is impractical.
+  - name: exoplayer
+    classifiers:
+       tag: mov_720p
+    workload_parameters:
+      format: "mov_720p"
+      duration: 30
+
+# Play 30 seconds of a OGG Vorbis audio with Exoplayer
+  - name: exoplayer
+    classifiers:
+       tag: ogg_128kbps
+    workload_parameters:
+      format: "ogg_128kbps"
+      duration: 30
+
+################################################################################
+# PCMark
+
+  - name: pcmark
+    classifiers:
+       tag: stats
+
+################################################################################
+# Geekbench
+
+  - name: geekbench
+    classifiers:
+       tag: stats
+    runtime_parameters:
+      airplane_mode: false
+
+################################################################################
+# Jankbench
+
+  - name: jankbench
+    classifiers:
+      tag: list_view
+    workload_parameters:
+      test: list_view
+
+  - name: jankbench
+    classifiers:
+      tag: image_list_view
+    workload_parameters:
+      test: image_list_view
+
+  - name: jankbench
+    classifiers:
+      tag: shadow_grid
+    workload_parameters:
+      test: shadow_grid
+
+  - name: jankbench
+    classifiers:
+      tag: low_hitrate_text
+    workload_parameters:
+      test: low_hitrate_text
+
+  - name: jankbench
+    classifiers:
+      tag: edit_text
+    workload_parameters:
+      test: edit_text
+
