@@ -20,6 +20,7 @@ import json
 import os
 import re
 
+from tempfile import NamedTemporaryFile
 from collections import OrderedDict
 from wlgen import Workload
 from devlib.utils.misc import ranges_to_list
@@ -92,7 +93,6 @@ class RTA(Workload):
 
         # Default initialization
         self.json = None
-        self.rta_profile = None
         self.loadref = None
         self.rta_cmd  = None
         self.rta_conf = None
@@ -222,9 +222,6 @@ class RTA(Workload):
 
         rtapp_conf = self.params['custom']
 
-        self.json = '{0:s}_{1:02d}.json'.format(self.name, self.exc_id)
-        ofile = open(self.json, 'w')
-
         calibration = self.getCalibrationConf()
         # Calibration can either be a string like "CPU1" or an integer, if the
         # former we need to quote it.
@@ -241,6 +238,7 @@ class RTA(Workload):
         # Check for inline config
         if not isinstance(self.params['custom'], basestring):
             if isinstance(self.params['custom'], dict):
+                self._log.info('Loading custom configuration from param...')
                 # Inline config present, turn it into a file repr
                 tmp_json = json.dumps(self.params['custom'],
                     indent=4, separators=(',', ': '), sort_keys=True)
@@ -250,27 +248,29 @@ class RTA(Workload):
                                  "a filename or an embedded dictionary")
         else:
             # We assume we are being passed a filename instead of a dict
-            self._log.info('Loading custom configuration:')
+            self._log.info('Loading custom configuration from file:')
             self._log.info('   %s', rtapp_conf)
             ifile = open(rtapp_conf, 'r')
 
+        json_lines = []
         for line in ifile:
             if '__DURATION__' in line and self.duration is None:
                 raise ValueError('Workload duration not specified')
             for src, target in replacements.iteritems():
                 line = line.replace(src, target)
-            ofile.write(line)
+                json_lines.append(line+'\n')
 
         if isinstance(ifile, file):
             ifile.close()
-        ofile.close()
 
-        with open(self.json) as f:
-            conf = json.load(f)
-        for tid in conf['tasks']:
+        # Load the custom JSON configuration
+        self.rta_conf = json.loads(json_lines)
+
+        for tid in self.rta__conf['tasks']:
             self.tasks[tid] = {'pid': -1}
 
-        return self.json
+        # Setup filename for the custom JSON configuration
+        self.json = '{0:s}_{1:02d}.json'.format(self.name, self.exc_id)
 
     def _confProfile(self):
 
@@ -284,7 +284,7 @@ class RTA(Workload):
                 raise ValueError(msg)
 
         # Task configuration
-        self.rta_profile = {
+        self.rta_conf = {
             'tasks': {},
             'global': {}
         }
@@ -315,7 +315,7 @@ class RTA(Workload):
         self._log.info('Default policy: %s', global_conf['default_policy'])
 
         # Setup global configuration
-        self.rta_profile['global'] = global_conf
+        self.rta_conf['global'] = global_conf
 
         # Setup tasks parameters
         for tid in sorted(self.params['profile'].keys()):
@@ -357,7 +357,7 @@ class RTA(Workload):
             self._log.info(' | loops count: %d', task['loops'])
 
             # Setup task configuration
-            self.rta_profile['tasks'][tid] = task_conf
+            self.rta_conf['tasks'][tid] = task_conf
 
             # Getting task phase descriptor
             pid=1
@@ -411,7 +411,7 @@ class RTA(Workload):
                     task_phase['run'] = running_time
                     task_phase['timer'] = {'ref': tid, 'period': period}
 
-                self.rta_profile['tasks'][tid]['phases']\
+                self.rta_conf['tasks'][tid]['phases']\
                     ['p'+str(pid).zfill(6)] = task_phase
 
                 if phase.cpus is not None:
@@ -428,16 +428,11 @@ class RTA(Workload):
 
                 pid+=1
 
-            # Append task name to the list of this workload tasks
-            self.tasks[tid] = {'pid': -1}
+			# Append task name to the list of this workload tasks
+			self.tasks[tid] = {'pid': -1}
 
-        # Generate JSON configuration on local file
-        self.json = '{0:s}_{1:02d}.json'.format(self.name, self.exc_id)
-        with open(self.json, 'w') as outfile:
-            json.dump(self.rta_profile, outfile,
-                      indent=4, separators=(',', ': '))
-
-        return self.json
+		# Setup filename for the custom JSON configuration
+		self.json = '{0:s}_{1:02d}.json'.format(self.name, self.exc_id)
 
     def conf(self,
              kind,
@@ -511,12 +506,27 @@ class RTA(Workload):
         elif kind == 'profile':
             self._confProfile()
 
-        # Move configuration file to target
-        self.target.push(self.json, self.run_dir)
+        # Check for a valid properties being set for each kind of RTApp workload
+        if self.rta_conf is None:
+            raise ValueError("Failed to generate RTApp configuration")
+        if self.rta_json is None:
+            raise ValueError("Failed to generate JSON filename")
 
-        self.rta_cmd  = self.target.executables_directory + '/rt-app'
-        self.rta_conf = self.run_dir + '/' + self.json
-        self.command = '{0:s} {1:s} 2>&1'.format(self.rta_cmd, self.rta_conf)
+
+        # Generate JSON configuration file and push it to target
+        target_json = self.target.path.join(self.run_dir, self.rta_json)
+        with NamedTemporaryFile() as fh:
+            json.dump(self.rta_conf, fh,
+                      indent=4, separators=(',', ': '))
+            # Flush the buffers to the file before pushing to the target since
+            # Target.push() will reopen the file
+            fh.flush()
+            self.target.push(fh.name, target_json)
+
+        # Setup RTApp command and WLGen command
+        self.rta_cmd  = self.target.path.join(
+            self.target.executables_directory, 'rt-app')
+        self.command = '{0:s} {1:s} 2>&1'.format(self.rta_cmd, target_json)
 
         # Set and return the test label
         self.test_label = '{0:s}_{1:02d}'.format(self.name, self.exc_id)
