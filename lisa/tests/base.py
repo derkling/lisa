@@ -868,6 +868,42 @@ class RTATestBundle(FtraceTestBundle):
       the associated task will be ignored in the noise accounting.
     """
 
+    @memoized
+    def get_trace_rtapp_tasks(self, trace):
+        """
+        Get the list of actual rt-app tasks names.
+
+        All rt-app generated tasks have a numerical suffix since fork support
+        has been mered. For forked tasks specifically we can also end up with
+        multple tasks with the same name specified in the rt-app profile.
+
+        :return: a list of task names matching trace tasks.
+
+        """
+        rtapp_names = []
+        for prefix in self.rtapp_tasks_from_profile:
+            regexp = "^{}(-[0-9]+)?$".format(prefix)
+            rtapp_names.append(re.compile(regexp))
+
+        rtapp_tasks = []
+        for comms in trace.get_tasks().values():
+            for comm in comms:
+                for name in rtapp_names:
+                    if re.match(name, comm):
+                        rtapp_tasks.append(comm)
+                        break
+
+        # Sanity check, we should have at least a comm for each task profile
+        if len(self.rtapp_tasks_from_profile) > len(rtapp_tasks):
+            raise RuntimeError("Trace tasks not matching rt-app profile")
+
+        return rtapp_tasks
+
+    def get_trace(self, **kwargs):
+        trace = super().get_trace(**kwargs)
+        self.trace_rtapp_tasks = self.get_trace_rtapp_tasks(trace)
+        return trace
+
     @requires_events('sched_switch')
     def trace_window(self, trace):
         """
@@ -903,12 +939,24 @@ class RTATestBundle(FtraceTestBundle):
         return self.get_rtapp_profile(self.plat_info)
 
     @property
-    def rtapp_tasks(self):
+    def rtapp_tasks_from_profile(self):
         """
         Sorted list of rtapp task names, as defined in ``rtapp_profile``
         attribute.
         """
         return sorted(self.rtapp_profile.keys())
+
+    @property
+    def rtapp_tasks(self):
+        """
+        Actual rtapp task names as found from the trace in this bundle.
+
+        .. seealso: get_trace_rtapp_tasks
+        """
+        tasks = getattr(self, 'trace_rtapp_tasks', None)
+        if tasks:
+            return tasks
+        raise RuntimeError("Cannot get trace task names: use (get_)trace() before.")
 
     @property
     def cgroup_configuration(self):
